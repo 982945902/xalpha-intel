@@ -12,6 +12,7 @@ from backend.app.services.ai_analysis import (
     analyze_group_result,
 )
 from backend.app.services.fund_data import get_fund_summary
+from backend.app.services.fund_search import search_funds
 from backend.app.services.group_analysis import analyze_group
 
 
@@ -41,6 +42,14 @@ class GroupAnalyzeRequest(BaseModel):
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "xalpha-intel"}
+
+
+@app.get("/api/funds/search")
+def fund_search(q: str, limit: int = 10):
+    try:
+        return [asdict(result) for result in search_funds(q, limit=min(max(limit, 1), 20))]
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"fund search failed: {exc}") from exc
 
 
 @app.get("/api/funds/{code}")

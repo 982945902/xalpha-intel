@@ -4,18 +4,21 @@ import {
   AlertTriangle,
   BarChart3,
   Layers3,
+  Plus,
   RefreshCw,
   Search,
   Sparkles,
 } from "lucide-react";
-import { analyzeFundAI, analyzeGroup, analyzeGroupAI, fetchFundSummary, fetchHealth } from "./api";
-import type { AIAnalysis, FundPoint, FundSummary, GroupAnalysis, RiskLevel } from "./types";
+import { analyzeFundAI, analyzeGroup, analyzeGroupAI, fetchFundSummary, fetchHealth, searchFunds } from "./api";
+import type { AIAnalysis, FundPoint, FundSearchResult, FundSummary, GroupAnalysis, RiskLevel } from "./types";
 
 const DEFAULT_GROUP = "501018, 161129";
 
 export function App() {
   const [health, setHealth] = useState("checking");
   const [fundCode, setFundCode] = useState("501018");
+  const [fundKeyword, setFundKeyword] = useState("原油");
+  const [fundSearchResults, setFundSearchResults] = useState<FundSearchResult[]>([]);
   const [fund, setFund] = useState<FundSummary | null>(null);
   const [fundAI, setFundAI] = useState<AIAnalysis | null>(null);
   const [groupName, setGroupName] = useState("原油观察组");
@@ -23,6 +26,7 @@ export function App() {
   const [group, setGroup] = useState<GroupAnalysis | null>(null);
   const [groupAI, setGroupAI] = useState<AIAnalysis | null>(null);
   const [loadingFund, setLoadingFund] = useState(false);
+  const [loadingSearch, setLoadingSearch] = useState(false);
   const [loadingGroup, setLoadingGroup] = useState(false);
   const [loadingFundAI, setLoadingFundAI] = useState(false);
   const [loadingGroupAI, setLoadingGroupAI] = useState(false);
@@ -48,6 +52,21 @@ export function App() {
       setError(exc instanceof Error ? exc.message : "基金查询失败");
     } finally {
       setLoadingFund(false);
+    }
+  }
+
+  async function searchFundCodes() {
+    const keyword = fundKeyword.trim();
+    if (!keyword) return;
+    setLoadingSearch(true);
+    setError(null);
+    try {
+      const results = await searchFunds(keyword);
+      setFundSearchResults(results);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "基金搜索失败");
+    } finally {
+      setLoadingSearch(false);
     }
   }
 
@@ -97,6 +116,13 @@ export function App() {
       setError(exc instanceof Error ? exc.message : "AI 组合分析失败");
     } finally {
       setLoadingGroupAI(false);
+    }
+  }
+
+  function appendCodeToGroup(code: string) {
+    const codes = parseCodes(groupCodes);
+    if (!codes.includes(code)) {
+      setGroupCodes([...codes, code].join(", "));
     }
   }
 
@@ -155,6 +181,50 @@ export function App() {
             </div>
             <BarChart3 size={22} />
           </div>
+
+          <form
+            className="search-box"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void searchFundCodes();
+            }}
+          >
+            <label>
+              <span>按基金名找代码</span>
+              <div className="query-row compact">
+                <input
+                  value={fundKeyword}
+                  onChange={(event) => setFundKeyword(event.target.value)}
+                  placeholder="输入关键词，如 原油、纳指、沪深300"
+                />
+                <button type="submit" disabled={loadingSearch} title="搜索基金代码">
+                  {loadingSearch ? <RefreshCw size={18} className="spin" /> : <Search size={18} />}
+                  <span>找代码</span>
+                </button>
+              </div>
+            </label>
+            {fundSearchResults.length > 0 ? (
+              <div className="search-results">
+                {fundSearchResults.map((result) => (
+                  <div className="search-result" key={result.code}>
+                    <div>
+                      <strong>{result.code}</strong>
+                      <span>{result.name}</span>
+                      <small>{[result.fund_type, result.company, result.latest_date].filter(Boolean).join(" · ")}</small>
+                    </div>
+                    <div className="result-actions">
+                      <button type="button" onClick={() => void loadFund(result.code)} title="查询这只基金">
+                        <Search size={16} />
+                      </button>
+                      <button type="button" onClick={() => appendCodeToGroup(result.code)} title="加入基金组">
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </form>
 
           <form
             className="query-row"

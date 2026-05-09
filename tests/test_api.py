@@ -39,6 +39,34 @@ def test_fund_summary_endpoint_uses_service(monkeypatch):
     assert body["total_return"] == 0.2
 
 
+def test_fund_search_endpoint_uses_keyword(monkeypatch):
+    from backend.app import main
+    from backend.app.services.fund_search import FundSearchResult
+
+    monkeypatch.setattr(
+        main,
+        "search_funds",
+        lambda q, limit=10: [
+            FundSearchResult(
+                code="501018",
+                name="南方原油A",
+                pinyin="NFYYA",
+                category="基金",
+                company="南方基金",
+                fund_type="QDII-商品",
+                latest_net_value=1.821,
+                latest_date="2026-05-07",
+            )
+        ],
+    )
+
+    response = TestClient(main.app).get("/api/funds/search?q=原油")
+
+    assert response.status_code == 200
+    assert response.json()[0]["code"] == "501018"
+    assert response.json()[0]["name"] == "南方原油A"
+
+
 def test_group_analyze_endpoint_accepts_multiple_codes(monkeypatch):
     from backend.app import main
 

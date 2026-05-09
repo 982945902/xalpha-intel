@@ -43,6 +43,7 @@ http://127.0.0.1:5178
 ## API
 
 - `GET /api/health`
+- `GET /api/funds/search?q=原油`
 - `GET /api/funds/{code}`
 - `GET /api/funds/{code}/summary`
 - `POST /api/analyze/fund`

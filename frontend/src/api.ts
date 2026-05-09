@@ -1,4 +1,4 @@
-import type { FundAIResponse, FundSummary, GroupAIResponse, GroupAnalysis } from "./types";
+import type { FundAIResponse, FundSearchResult, FundSummary, GroupAIResponse, GroupAnalysis } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8128";
 
@@ -8,6 +8,10 @@ export async function fetchHealth(): Promise<{ status: string; service: string }
 
 export async function fetchFundSummary(code: string): Promise<FundSummary> {
   return getJson(`/api/funds/${encodeURIComponent(code)}/summary`);
+}
+
+export async function searchFunds(keyword: string): Promise<FundSearchResult[]> {
+  return getJson(`/api/funds/search?q=${encodeURIComponent(keyword)}`);
 }
 
 export async function analyzeGroup(name: string, codes: string[]): Promise<GroupAnalysis> {

@@ -18,6 +18,17 @@ export type FundSummary = {
   points: FundPoint[];
 };
 
+export type FundSearchResult = {
+  code: string;
+  name: string;
+  pinyin: string | null;
+  category: string | null;
+  company: string | null;
+  fund_type: string | null;
+  latest_net_value: number | null;
+  latest_date: string | null;
+};
+
 export type GroupAnalysis = {
   name: string;
   member_count: number;
