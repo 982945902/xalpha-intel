@@ -6,6 +6,7 @@ import type {
   GroupAIResponse,
   GroupAnalysis,
   GroupSentimentResponse,
+  SavedFundGroup,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8128";
@@ -24,6 +25,25 @@ export async function searchFunds(keyword: string): Promise<FundSearchResult[]> 
 
 export async function analyzeGroup(name: string, codes: string[]): Promise<GroupAnalysis> {
   return postJson("/api/groups/analyze", { name, codes });
+}
+
+export async function fetchSavedGroups(): Promise<SavedFundGroup[]> {
+  return getJson("/api/groups/saved");
+}
+
+export async function createSavedGroup(name: string, codes: string[]): Promise<SavedFundGroup> {
+  return postJson("/api/groups/saved", { name, codes });
+}
+
+export async function updateSavedGroup(id: string, name: string, codes: string[]): Promise<SavedFundGroup> {
+  return putJson(`/api/groups/saved/${encodeURIComponent(id)}`, { name, codes });
+}
+
+export async function deleteSavedGroup(id: string): Promise<{ deleted: boolean }> {
+  const response = await fetch(`${API_BASE}/api/groups/saved/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  return handleJson<{ deleted: boolean }>(response);
 }
 
 export async function analyzeFundAI(code: string): Promise<FundAIResponse> {
@@ -50,6 +70,15 @@ async function getJson<T>(path: string): Promise<T> {
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return handleJson<T>(response);
+}
+
+async function putJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });

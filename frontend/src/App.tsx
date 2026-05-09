@@ -3,12 +3,15 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  FolderOpen,
   Layers3,
   Newspaper,
   Plus,
   RefreshCw,
+  Save,
   Search,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import {
   analyzeFundAI,
@@ -16,9 +19,13 @@ import {
   analyzeGroup,
   analyzeGroupAI,
   analyzeGroupSentiment,
+  createSavedGroup,
+  deleteSavedGroup,
   fetchFundSummary,
   fetchHealth,
+  fetchSavedGroups,
   searchFunds,
+  updateSavedGroup,
 } from "./api";
 import type {
   AIAnalysis,
@@ -27,6 +34,7 @@ import type {
   FundSummary,
   GroupAnalysis,
   RiskLevel,
+  SavedFundGroup,
   SentimentReport,
   SentimentStance,
   SentimentTone,
@@ -47,6 +55,8 @@ export function App() {
   const [group, setGroup] = useState<GroupAnalysis | null>(null);
   const [groupAI, setGroupAI] = useState<AIAnalysis | null>(null);
   const [groupSentiment, setGroupSentiment] = useState<SentimentReport | null>(null);
+  const [savedGroups, setSavedGroups] = useState<SavedFundGroup[]>([]);
+  const [activeSavedGroupId, setActiveSavedGroupId] = useState<string | null>(null);
   const [loadingFund, setLoadingFund] = useState(false);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [loadingGroup, setLoadingGroup] = useState(false);
@@ -54,12 +64,16 @@ export function App() {
   const [loadingGroupAI, setLoadingGroupAI] = useState(false);
   const [loadingFundSentiment, setLoadingFundSentiment] = useState(false);
   const [loadingGroupSentiment, setLoadingGroupSentiment] = useState(false);
+  const [loadingSavedGroups, setLoadingSavedGroups] = useState(false);
+  const [savingGroup, setSavingGroup] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHealth()
       .then((result) => setHealth(result.status))
       .catch(() => setHealth("offline"));
+    void loadSavedGroups();
   }, []);
 
   async function loadFund(code = fundCode) {
@@ -180,10 +194,79 @@ export function App() {
     }
   }
 
+  async function loadSavedGroups() {
+    setLoadingSavedGroups(true);
+    setError(null);
+    try {
+      setSavedGroups(await fetchSavedGroups());
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "保存组加载失败");
+    } finally {
+      setLoadingSavedGroups(false);
+    }
+  }
+
+  async function saveNewGroup() {
+    const codes = parseCodes(groupCodes);
+    if (codes.length === 0) return;
+    setSavingGroup(true);
+    setError(null);
+    try {
+      const saved = await createSavedGroup(groupName.trim() || "fund group", codes);
+      setActiveSavedGroupId(saved.id);
+      setSavedGroups(await fetchSavedGroups());
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "保存基金组失败");
+    } finally {
+      setSavingGroup(false);
+    }
+  }
+
+  async function updateCurrentSavedGroup() {
+    const codes = parseCodes(groupCodes);
+    if (!activeSavedGroupId || codes.length === 0) return;
+    setSavingGroup(true);
+    setError(null);
+    try {
+      const saved = await updateSavedGroup(activeSavedGroupId, groupName.trim() || "fund group", codes);
+      setActiveSavedGroupId(saved.id);
+      setSavedGroups(await fetchSavedGroups());
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "更新基金组失败");
+    } finally {
+      setSavingGroup(false);
+    }
+  }
+
+  async function deleteCurrentSavedGroup() {
+    if (!activeSavedGroupId) return;
+    setDeletingGroup(true);
+    setError(null);
+    try {
+      await deleteSavedGroup(activeSavedGroupId);
+      setActiveSavedGroupId(null);
+      setSavedGroups(await fetchSavedGroups());
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "删除基金组失败");
+    } finally {
+      setDeletingGroup(false);
+    }
+  }
+
+  function pickSavedGroup(saved: SavedFundGroup) {
+    setActiveSavedGroupId(saved.id);
+    setGroupName(saved.name);
+    setGroupCodes(saved.codes.join(", "));
+    setGroup(null);
+    setGroupAI(null);
+    setGroupSentiment(null);
+  }
+
   function appendCodeToGroup(code: string) {
     const codes = parseCodes(groupCodes);
     if (!codes.includes(code)) {
       setGroupCodes([...codes, code].join(", "));
+      setActiveSavedGroupId(null);
     }
   }
 
@@ -340,18 +423,68 @@ export function App() {
           </div>
 
           <div className="group-form">
+            <SavedGroupsPanel
+              groups={savedGroups}
+              activeId={activeSavedGroupId}
+              loading={loadingSavedGroups}
+              onPick={pickSavedGroup}
+              onReload={() => void loadSavedGroups()}
+            />
             <label>
               <span>组名</span>
-              <input value={groupName} onChange={(event) => setGroupName(event.target.value)} />
+              <input
+                value={groupName}
+                onChange={(event) => {
+                  setGroupName(event.target.value);
+                  setGroupAI(null);
+                  setGroupSentiment(null);
+                }}
+              />
             </label>
             <label>
               <span>基金代码</span>
               <textarea
                 value={groupCodes}
-                onChange={(event) => setGroupCodes(event.target.value)}
+                onChange={(event) => {
+                  setGroupCodes(event.target.value);
+                  setGroupAI(null);
+                  setGroupSentiment(null);
+                }}
                 placeholder="多个代码用逗号、空格或换行分隔"
               />
             </label>
+            <div className="group-save-actions">
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => void saveNewGroup()}
+                disabled={savingGroup}
+                title="保存为新基金组"
+              >
+                {savingGroup ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
+                <span>保存新组</span>
+              </button>
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => void updateCurrentSavedGroup()}
+                disabled={savingGroup || !activeSavedGroupId}
+                title="更新当前已保存组"
+              >
+                {savingGroup ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
+                <span>更新当前组</span>
+              </button>
+              <button
+                type="button"
+                className="danger-action"
+                onClick={() => void deleteCurrentSavedGroup()}
+                disabled={deletingGroup || !activeSavedGroupId}
+                title="删除当前已保存组"
+              >
+                {deletingGroup ? <RefreshCw size={18} className="spin" /> : <Trash2 size={18} />}
+                <span>删除</span>
+              </button>
+            </div>
             <button onClick={() => void loadGroup()} disabled={loadingGroup} title="分析基金组">
               {loadingGroup ? <RefreshCw size={18} className="spin" /> : <Layers3 size={18} />}
               <span>分析这一组</span>
@@ -382,6 +515,55 @@ export function App() {
         </section>
       </section>
     </main>
+  );
+}
+
+function SavedGroupsPanel({
+  groups,
+  activeId,
+  loading,
+  onPick,
+  onReload,
+}: {
+  groups: SavedFundGroup[];
+  activeId: string | null;
+  loading: boolean;
+  onPick: (group: SavedFundGroup) => void;
+  onReload: () => void;
+}) {
+  return (
+    <section className="saved-groups">
+      <div className="saved-groups-head">
+        <div>
+          <div className="section-kicker">Saved Groups</div>
+          <h3>已保存组</h3>
+        </div>
+        <button type="button" onClick={onReload} disabled={loading} title="刷新保存组">
+          {loading ? <RefreshCw size={16} className="spin" /> : <RefreshCw size={16} />}
+        </button>
+      </div>
+      {groups.length > 0 ? (
+        <div className="saved-group-list">
+          {groups.map((group) => (
+            <button
+              type="button"
+              className={`saved-group-item${group.id === activeId ? " saved-group-active" : ""}`}
+              key={group.id}
+              onClick={() => onPick(group)}
+              title="载入这个基金组"
+            >
+              <FolderOpen size={16} />
+              <span>
+                <strong>{group.name}</strong>
+                <small>{group.codes.join(", ")}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="saved-group-empty">暂无保存组</div>
+      )}
+    </section>
   );
 }
 

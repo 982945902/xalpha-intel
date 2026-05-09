@@ -7,6 +7,7 @@ It provides:
 - A FastAPI backend that wraps xalpha fund data and portfolio-style group analysis.
 - A React dashboard for market/fund intelligence.
 - A fund workbench that supports single fund lookup and multi-fund groups.
+- Saved fund groups backed by `DATABASE_URL` with a local SQLite fallback.
 - Optional Codex CLI analysis with deterministic rule-based fallback.
 - A sentiment layer that combines fund announcements, topic news, and AI/rule-based bullish-bearish signals.
 
@@ -49,6 +50,11 @@ http://127.0.0.1:5178
 - `GET /api/funds/{code}/summary`
 - `POST /api/analyze/fund`
 - `POST /api/groups/analyze`
+- `GET /api/groups/saved`
+- `POST /api/groups/saved`
+- `GET /api/groups/saved/{id}`
+- `PUT /api/groups/saved/{id}`
+- `DELETE /api/groups/saved/{id}`
 - `POST /api/analyze/group`
 - `POST /api/sentiment/fund`
 - `POST /api/sentiment/group`
@@ -63,7 +69,11 @@ Environment knobs:
 export CODEX_BIN=codex
 export CODEX_ANALYSIS_TIMEOUT=45
 export SENTIMENT_NEWS_TIMEOUT=6
+export DATABASE_URL=postgresql://...
 ```
+
+If `DATABASE_URL` is not set, saved groups use `sqlite:///./xalpha_intel.db`. Cloud Postgres
+tables use the `xalpha_fund_groups` and `xalpha_fund_group_items` names.
 
 Sentiment analysis uses xalpha/Eastmoney fund announcements and Google News RSS keyword searches.
 Codex summarizes the combined materials when available; otherwise the API returns deterministic rule

@@ -41,6 +41,14 @@ export type GroupAnalysis = {
   narrative: string;
 };
 
+export type SavedFundGroup = {
+  id: string;
+  name: string;
+  codes: string[];
+  created_at: string;
+  updated_at: string;
+};
+
 export type AIAnalysis = {
   source: "codex" | "rules";
   headline: string;

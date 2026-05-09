@@ -14,6 +14,13 @@ from backend.app.services.ai_analysis import (
 from backend.app.services.fund_data import get_fund_summary
 from backend.app.services.fund_search import search_funds
 from backend.app.services.group_analysis import analyze_group
+from backend.app.services.saved_groups import (
+    create_saved_group,
+    delete_saved_group,
+    get_saved_group,
+    list_saved_groups,
+    update_saved_group,
+)
 from backend.app.services.sentiment import analyze_fund_sentiment, analyze_group_sentiment
 
 
@@ -37,6 +44,11 @@ class FundAnalyzeRequest(BaseModel):
 
 class GroupAnalyzeRequest(BaseModel):
     name: str = Field(default="fund group", min_length=1, max_length=80)
+    codes: list[str] = Field(min_length=1, max_length=20)
+
+
+class SavedGroupRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
     codes: list[str] = Field(min_length=1, max_length=20)
 
 
@@ -76,6 +88,55 @@ def analyze_fund(request: FundAnalyzeRequest):
 def group_analysis(request: GroupAnalyzeRequest):
     summaries = [_load_summary(code) for code in _unique_codes(request.codes)]
     return asdict(analyze_group(name=request.name, members=summaries))
+
+
+@app.get("/api/groups/saved")
+def saved_groups():
+    try:
+        return [asdict(group) for group in list_saved_groups()]
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"saved group load failed: {exc}") from exc
+
+
+@app.post("/api/groups/saved")
+def save_group(request: SavedGroupRequest):
+    try:
+        return asdict(create_saved_group(request.name, request.codes))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"saved group create failed: {exc}") from exc
+
+
+@app.get("/api/groups/saved/{group_id}")
+def saved_group_detail(group_id: str):
+    try:
+        group = get_saved_group(group_id)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"saved group load failed: {exc}") from exc
+    if group is None:
+        raise HTTPException(status_code=404, detail="saved group not found")
+    return asdict(group)
+
+
+@app.put("/api/groups/saved/{group_id}")
+def update_group(group_id: str, request: SavedGroupRequest):
+    try:
+        return asdict(update_saved_group(group_id, request.name, request.codes))
+    except ValueError as exc:
+        message = str(exc)
+        status = 404 if "not found" in message else 422
+        raise HTTPException(status_code=status, detail=message) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"saved group update failed: {exc}") from exc
+
+
+@app.delete("/api/groups/saved/{group_id}")
+def remove_saved_group(group_id: str):
+    try:
+        return {"deleted": delete_saved_group(group_id)}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"saved group delete failed: {exc}") from exc
 
 
 @app.post("/api/analyze/group")
