@@ -61,3 +61,53 @@ def test_group_analyze_endpoint_accepts_multiple_codes(monkeypatch):
     assert body["member_count"] == 2
     assert body["best_member"]["code"] == "501018"
     assert [member["code"] for member in body["members"]] == ["501018", "161129"]
+
+
+def test_fund_ai_endpoint_returns_analysis(monkeypatch):
+    from backend.app import main
+
+    monkeypatch.setattr(
+        main,
+        "get_fund_summary",
+        lambda code: _summary(code, "南方原油A", [1.0, 1.2]),
+    )
+    monkeypatch.setattr(
+        main,
+        "analyze_fund_summary",
+        lambda summary: main.AIAnalysis(source="rules", headline="规则分析", bullets=["基金分析"]),
+    )
+
+    response = TestClient(main.app).post("/api/analyze/fund", json={"code": "501018"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"]["code"] == "501018"
+    assert body["analysis"]["source"] == "rules"
+    assert body["analysis"]["bullets"] == ["基金分析"]
+
+
+def test_group_ai_endpoint_returns_group_and_analysis(monkeypatch):
+    from backend.app import main
+
+    fixtures = {
+        "501018": _summary("501018", "南方原油A", [1.0, 1.3]),
+        "161129": _summary("161129", "原油LOF", [1.0, 0.9]),
+    }
+
+    monkeypatch.setattr(main, "get_fund_summary", lambda code: fixtures[code])
+    monkeypatch.setattr(main, "analyze_group", analyze_group)
+    monkeypatch.setattr(
+        main,
+        "analyze_group_result",
+        lambda group: main.AIAnalysis(source="rules", headline="规则分析", bullets=["组合分析"]),
+    )
+
+    response = TestClient(main.app).post(
+        "/api/analyze/group",
+        json={"name": "oil group", "codes": ["501018", "161129"]},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["group"]["member_count"] == 2
+    assert body["analysis"]["headline"] == "规则分析"

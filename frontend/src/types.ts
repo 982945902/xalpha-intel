@@ -29,3 +29,20 @@ export type GroupAnalysis = {
   risk_level: RiskLevel;
   narrative: string;
 };
+
+export type AIAnalysis = {
+  source: "codex" | "rules";
+  headline: string;
+  bullets: string[];
+  disclaimer: string;
+};
+
+export type FundAIResponse = {
+  summary: FundSummary;
+  analysis: AIAnalysis;
+};
+
+export type GroupAIResponse = {
+  group: GroupAnalysis;
+  analysis: AIAnalysis;
+};

@@ -6,9 +6,10 @@ import {
   Layers3,
   RefreshCw,
   Search,
+  Sparkles,
 } from "lucide-react";
-import { analyzeGroup, fetchFundSummary, fetchHealth } from "./api";
-import type { FundPoint, FundSummary, GroupAnalysis, RiskLevel } from "./types";
+import { analyzeFundAI, analyzeGroup, analyzeGroupAI, fetchFundSummary, fetchHealth } from "./api";
+import type { AIAnalysis, FundPoint, FundSummary, GroupAnalysis, RiskLevel } from "./types";
 
 const DEFAULT_GROUP = "501018, 161129";
 
@@ -16,11 +17,15 @@ export function App() {
   const [health, setHealth] = useState("checking");
   const [fundCode, setFundCode] = useState("501018");
   const [fund, setFund] = useState<FundSummary | null>(null);
+  const [fundAI, setFundAI] = useState<AIAnalysis | null>(null);
   const [groupName, setGroupName] = useState("原油观察组");
   const [groupCodes, setGroupCodes] = useState(DEFAULT_GROUP);
   const [group, setGroup] = useState<GroupAnalysis | null>(null);
+  const [groupAI, setGroupAI] = useState<AIAnalysis | null>(null);
   const [loadingFund, setLoadingFund] = useState(false);
   const [loadingGroup, setLoadingGroup] = useState(false);
+  const [loadingFundAI, setLoadingFundAI] = useState(false);
+  const [loadingGroupAI, setLoadingGroupAI] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,6 +42,7 @@ export function App() {
     try {
       const result = await fetchFundSummary(normalized);
       setFund(result);
+      setFundAI(null);
       setFundCode(normalized);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "基金查询失败");
@@ -53,10 +59,44 @@ export function App() {
     try {
       const result = await analyzeGroup(groupName.trim() || "fund group", codes);
       setGroup(result);
+      setGroupAI(null);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "组合分析失败");
     } finally {
       setLoadingGroup(false);
+    }
+  }
+
+  async function loadFundAI() {
+    const normalized = fundCode.trim();
+    if (!normalized) return;
+    setLoadingFundAI(true);
+    setError(null);
+    try {
+      const result = await analyzeFundAI(normalized);
+      setFund(result.summary);
+      setFundAI(result.analysis);
+      setFundCode(normalized);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "AI 分析失败");
+    } finally {
+      setLoadingFundAI(false);
+    }
+  }
+
+  async function loadGroupAI() {
+    const codes = parseCodes(groupCodes);
+    if (codes.length === 0) return;
+    setLoadingGroupAI(true);
+    setError(null);
+    try {
+      const result = await analyzeGroupAI(groupName.trim() || "fund group", codes);
+      setGroup(result.group);
+      setGroupAI(result.analysis);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "AI 组合分析失败");
+    } finally {
+      setLoadingGroupAI(false);
     }
   }
 
@@ -134,7 +174,18 @@ export function App() {
             </button>
           </form>
 
+          <button
+            className="secondary-action"
+            onClick={() => void loadFundAI()}
+            disabled={loadingFundAI || loadingFund}
+            title="生成基金 AI 分析"
+          >
+            {loadingFundAI ? <RefreshCw size={18} className="spin" /> : <Sparkles size={18} />}
+            <span>AI 分析基金</span>
+          </button>
+
           {fund ? <FundPanel fund={fund} /> : <EmptyState text="输入基金代码后查看净值、回撤、波动与走势。" />}
+          {fundAI ? <AIInsight analysis={fundAI} /> : null}
         </section>
 
         <section className="panel">
@@ -163,12 +214,42 @@ export function App() {
               {loadingGroup ? <RefreshCw size={18} className="spin" /> : <Layers3 size={18} />}
               <span>分析这一组</span>
             </button>
+            <button
+              className="secondary-action"
+              onClick={() => void loadGroupAI()}
+              disabled={loadingGroupAI || loadingGroup}
+              title="生成基金组 AI 分析"
+            >
+              {loadingGroupAI ? <RefreshCw size={18} className="spin" /> : <Sparkles size={18} />}
+              <span>AI 分析这一组</span>
+            </button>
           </div>
 
           {group ? <GroupPanel group={group} onPick={(code) => void loadFund(code)} /> : <EmptyState text="输入多个基金代码，形成一个观察组并比较收益、回撤和风险。" />}
+          {groupAI ? <AIInsight analysis={groupAI} /> : null}
         </section>
       </section>
     </main>
+  );
+}
+
+function AIInsight({ analysis }: { analysis: AIAnalysis }) {
+  return (
+    <section className="ai-insight">
+      <div className="ai-head">
+        <div>
+          <div className="section-kicker">AI Insight</div>
+          <h3>{analysis.headline}</h3>
+        </div>
+        <span className={`source source-${analysis.source}`}>{analysis.source.toUpperCase()}</span>
+      </div>
+      <ul>
+        {analysis.bullets.map((bullet) => (
+          <li key={bullet}>{bullet}</li>
+        ))}
+      </ul>
+      <p>{analysis.disclaimer}</p>
+    </section>
   );
 }
 

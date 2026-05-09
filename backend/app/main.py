@@ -6,6 +6,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from backend.app.services.ai_analysis import (
+    AIAnalysis,
+    analyze_fund_summary,
+    analyze_group_result,
+)
 from backend.app.services.fund_data import get_fund_summary
 from backend.app.services.group_analysis import analyze_group
 
@@ -53,11 +58,7 @@ def analyze_fund(request: FundAnalyzeRequest):
     summary = _load_summary(request.code)
     return {
         "summary": asdict(summary),
-        "narrative": (
-            f"{summary.code} latest net value is {summary.latest_net_value}. "
-            f"Window return is {summary.total_return:.2%}, max drawdown is "
-            f"{summary.max_drawdown:.2%}, risk is {summary.risk_level}."
-        ),
+        "analysis": asdict(analyze_fund_summary(summary)),
     }
 
 
@@ -65,6 +66,16 @@ def analyze_fund(request: FundAnalyzeRequest):
 def group_analysis(request: GroupAnalyzeRequest):
     summaries = [_load_summary(code) for code in _unique_codes(request.codes)]
     return asdict(analyze_group(name=request.name, members=summaries))
+
+
+@app.post("/api/analyze/group")
+def analyze_group_with_ai(request: GroupAnalyzeRequest):
+    summaries = [_load_summary(code) for code in _unique_codes(request.codes)]
+    group = analyze_group(name=request.name, members=summaries)
+    return {
+        "group": asdict(group),
+        "analysis": asdict(analyze_group_result(group)),
+    }
 
 
 def _summary_response(code: str):
