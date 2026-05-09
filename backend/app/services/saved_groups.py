@@ -23,6 +23,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Engine
 
+from backend.app.services.fund_search import search_funds
+
 load_dotenv()
 
 DEFAULT_DATABASE_URL = "sqlite:///./xalpha_intel.db"
@@ -48,10 +50,17 @@ fund_group_items = Table(
 
 
 @dataclass(frozen=True)
+class SavedFund:
+    code: str
+    name: str
+
+
+@dataclass(frozen=True)
 class SavedFundGroup:
     id: str
     name: str
     codes: list[str]
+    funds: list[SavedFund]
     created_at: str
     updated_at: str
 
@@ -127,6 +136,19 @@ def delete_saved_group(group_id: str) -> bool:
 def reset_saved_group_store_for_tests() -> None:
     _engine.cache_clear()
     _ensure_tables.cache_clear()
+    resolve_fund_name.cache_clear()
+
+
+@lru_cache(maxsize=512)
+def resolve_fund_name(code: str) -> str:
+    try:
+        matches = search_funds(code, limit=8)
+    except Exception:
+        return code
+    for match in matches:
+        if match.code == code:
+            return match.name
+    return matches[0].name if matches else code
 
 
 @lru_cache(maxsize=1)
@@ -154,10 +176,12 @@ def _group_from_row(connection, row) -> SavedFundGroup:
         .where(fund_group_items.c.group_id == row["id"])
         .order_by(fund_group_items.c.position.asc())
     )
+    codes = [item.code for item in item_rows]
     return SavedFundGroup(
         id=row["id"],
         name=row["name"],
-        codes=[item.code for item in item_rows],
+        codes=codes,
+        funds=[SavedFund(code=code, name=resolve_fund_name(code)) for code in codes],
         created_at=_iso(row["created_at"]),
         updated_at=_iso(row["updated_at"]),
     )

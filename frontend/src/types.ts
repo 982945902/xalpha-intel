@@ -45,6 +45,10 @@ export type SavedFundGroup = {
   id: string;
   name: string;
   codes: string[];
+  funds: Array<{
+    code: string;
+    name: string;
+  }>;
   created_at: string;
   updated_at: string;
 };

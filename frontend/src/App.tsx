@@ -266,7 +266,8 @@ export function App() {
     const codes = parseCodes(groupCodes);
     if (!codes.includes(code)) {
       setGroupCodes([...codes, code].join(", "));
-      setActiveSavedGroupId(null);
+      setGroupAI(null);
+      setGroupSentiment(null);
     }
   }
 
@@ -555,7 +556,7 @@ function SavedGroupsPanel({
               <FolderOpen size={16} />
               <span>
                 <strong>{group.name}</strong>
-                <small>{group.codes.join(", ")}</small>
+                <small>{formatSavedFunds(group)}</small>
               </span>
             </button>
           ))}
@@ -565,6 +566,15 @@ function SavedGroupsPanel({
       )}
     </section>
   );
+}
+
+function formatSavedFunds(group: SavedFundGroup): string {
+  const funds = group.funds?.length
+    ? group.funds
+    : group.codes.map((code) => ({ code, name: code }));
+  return funds
+    .map((fund) => (fund.name && fund.name !== fund.code ? `${fund.code} ${fund.name}` : fund.code))
+    .join(" · ");
 }
 
 function AIInsight({ analysis }: { analysis: AIAnalysis }) {
