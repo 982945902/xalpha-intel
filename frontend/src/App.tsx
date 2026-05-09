@@ -4,13 +4,33 @@ import {
   AlertTriangle,
   BarChart3,
   Layers3,
+  Newspaper,
   Plus,
   RefreshCw,
   Search,
   Sparkles,
 } from "lucide-react";
-import { analyzeFundAI, analyzeGroup, analyzeGroupAI, fetchFundSummary, fetchHealth, searchFunds } from "./api";
-import type { AIAnalysis, FundPoint, FundSearchResult, FundSummary, GroupAnalysis, RiskLevel } from "./types";
+import {
+  analyzeFundAI,
+  analyzeFundSentiment,
+  analyzeGroup,
+  analyzeGroupAI,
+  analyzeGroupSentiment,
+  fetchFundSummary,
+  fetchHealth,
+  searchFunds,
+} from "./api";
+import type {
+  AIAnalysis,
+  FundPoint,
+  FundSearchResult,
+  FundSummary,
+  GroupAnalysis,
+  RiskLevel,
+  SentimentReport,
+  SentimentStance,
+  SentimentTone,
+} from "./types";
 
 const DEFAULT_GROUP = "501018, 161129";
 
@@ -21,15 +41,19 @@ export function App() {
   const [fundSearchResults, setFundSearchResults] = useState<FundSearchResult[]>([]);
   const [fund, setFund] = useState<FundSummary | null>(null);
   const [fundAI, setFundAI] = useState<AIAnalysis | null>(null);
+  const [fundSentiment, setFundSentiment] = useState<SentimentReport | null>(null);
   const [groupName, setGroupName] = useState("原油观察组");
   const [groupCodes, setGroupCodes] = useState(DEFAULT_GROUP);
   const [group, setGroup] = useState<GroupAnalysis | null>(null);
   const [groupAI, setGroupAI] = useState<AIAnalysis | null>(null);
+  const [groupSentiment, setGroupSentiment] = useState<SentimentReport | null>(null);
   const [loadingFund, setLoadingFund] = useState(false);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [loadingGroup, setLoadingGroup] = useState(false);
   const [loadingFundAI, setLoadingFundAI] = useState(false);
   const [loadingGroupAI, setLoadingGroupAI] = useState(false);
+  const [loadingFundSentiment, setLoadingFundSentiment] = useState(false);
+  const [loadingGroupSentiment, setLoadingGroupSentiment] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,6 +71,7 @@ export function App() {
       const result = await fetchFundSummary(normalized);
       setFund(result);
       setFundAI(null);
+      setFundSentiment(null);
       setFundCode(normalized);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "基金查询失败");
@@ -79,6 +104,7 @@ export function App() {
       const result = await analyzeGroup(groupName.trim() || "fund group", codes);
       setGroup(result);
       setGroupAI(null);
+      setGroupSentiment(null);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "组合分析失败");
     } finally {
@@ -95,6 +121,7 @@ export function App() {
       const result = await analyzeFundAI(normalized);
       setFund(result.summary);
       setFundAI(result.analysis);
+      setFundSentiment(null);
       setFundCode(normalized);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "AI 分析失败");
@@ -112,10 +139,44 @@ export function App() {
       const result = await analyzeGroupAI(groupName.trim() || "fund group", codes);
       setGroup(result.group);
       setGroupAI(result.analysis);
+      setGroupSentiment(null);
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "AI 组合分析失败");
     } finally {
       setLoadingGroupAI(false);
+    }
+  }
+
+  async function loadFundSentiment() {
+    const normalized = fundCode.trim();
+    if (!normalized) return;
+    setLoadingFundSentiment(true);
+    setError(null);
+    try {
+      const result = await analyzeFundSentiment(normalized);
+      setFund(result.summary);
+      setFundSentiment(result.sentiment);
+      setFundCode(normalized);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "基金舆情分析失败");
+    } finally {
+      setLoadingFundSentiment(false);
+    }
+  }
+
+  async function loadGroupSentiment() {
+    const codes = parseCodes(groupCodes);
+    if (codes.length === 0) return;
+    setLoadingGroupSentiment(true);
+    setError(null);
+    try {
+      const result = await analyzeGroupSentiment(groupName.trim() || "fund group", codes);
+      setGroup(result.group);
+      setGroupSentiment(result.sentiment);
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : "基金组舆情分析失败");
+    } finally {
+      setLoadingGroupSentiment(false);
     }
   }
 
@@ -254,8 +315,19 @@ export function App() {
             <span>AI 分析基金</span>
           </button>
 
+          <button
+            className="secondary-action"
+            onClick={() => void loadFundSentiment()}
+            disabled={loadingFundSentiment || loadingFund}
+            title="生成基金综合舆情"
+          >
+            {loadingFundSentiment ? <RefreshCw size={18} className="spin" /> : <Newspaper size={18} />}
+            <span>综合舆情</span>
+          </button>
+
           {fund ? <FundPanel fund={fund} /> : <EmptyState text="输入基金代码后查看净值、回撤、波动与走势。" />}
           {fundAI ? <AIInsight analysis={fundAI} /> : null}
+          {fundSentiment ? <SentimentPanel report={fundSentiment} /> : null}
         </section>
 
         <section className="panel">
@@ -293,10 +365,20 @@ export function App() {
               {loadingGroupAI ? <RefreshCw size={18} className="spin" /> : <Sparkles size={18} />}
               <span>AI 分析这一组</span>
             </button>
+            <button
+              className="secondary-action"
+              onClick={() => void loadGroupSentiment()}
+              disabled={loadingGroupSentiment || loadingGroup}
+              title="生成基金组综合舆情"
+            >
+              {loadingGroupSentiment ? <RefreshCw size={18} className="spin" /> : <Newspaper size={18} />}
+              <span>综合舆情</span>
+            </button>
           </div>
 
           {group ? <GroupPanel group={group} onPick={(code) => void loadFund(code)} /> : <EmptyState text="输入多个基金代码，形成一个观察组并比较收益、回撤和风险。" />}
           {groupAI ? <AIInsight analysis={groupAI} /> : null}
+          {groupSentiment ? <SentimentPanel report={groupSentiment} /> : null}
         </section>
       </section>
     </main>
@@ -320,6 +402,68 @@ function AIInsight({ analysis }: { analysis: AIAnalysis }) {
       </ul>
       <p>{analysis.disclaimer}</p>
     </section>
+  );
+}
+
+function SentimentPanel({ report }: { report: SentimentReport }) {
+  return (
+    <section className="sentiment-panel">
+      <div className="sentiment-head">
+        <div>
+          <div className="section-kicker">Sentiment</div>
+          <h3>{report.subject}</h3>
+        </div>
+        <span className={`stance stance-${report.stance}`}>{stanceLabel(report.stance)}</span>
+      </div>
+
+      <div className="sentiment-counts">
+        <Metric label="舆情分" value={report.score.toFixed(2)} tone={toneForStance(report.stance)} />
+        <Metric label="利好" value={String(report.bullish_count)} tone="good" />
+        <Metric label="利空" value={String(report.bearish_count)} tone="bad" />
+        <Metric label="中性" value={String(report.neutral_count)} />
+      </div>
+
+      <p className="sentiment-summary">{report.summary}</p>
+
+      <div className="keyword-row">
+        {report.keywords.map((keyword) => (
+          <span key={keyword}>{keyword}</span>
+        ))}
+      </div>
+
+      <div className="sentiment-list">
+        {report.items.length > 0 ? (
+          report.items.map((item) => <SentimentRow key={`${item.title}-${item.url}`} item={item} />)
+        ) : (
+          <div className="sentiment-empty">暂无可用舆情材料</div>
+        )}
+      </div>
+
+      <p className="sentiment-disclaimer">
+        {report.analysis_source.toUpperCase()} · {report.disclaimer}
+      </p>
+    </section>
+  );
+}
+
+function SentimentRow({ item }: { item: SentimentReport["items"][number] }) {
+  const title = item.url ? (
+    <a href={item.url} target="_blank" rel="noreferrer">
+      {item.title}
+    </a>
+  ) : (
+    <span>{item.title}</span>
+  );
+
+  return (
+    <article className="sentiment-item">
+      <div className="sentiment-item-head">
+        <span className={`tone-badge tone-badge-${item.tone}`}>{toneLabel(item.tone)}</span>
+        <small>{[item.source, item.published_at].filter(Boolean).join(" · ")}</small>
+      </div>
+      <strong>{title}</strong>
+      <p>{item.reason}</p>
+    </article>
   );
 }
 
@@ -444,4 +588,31 @@ function toneForReturn(value: number): string {
   if (value > 0) return "good";
   if (value < 0) return "bad";
   return "neutral";
+}
+
+function toneForStance(stance: SentimentStance): string {
+  if (stance === "bullish") return "good";
+  if (stance === "bearish") return "bad";
+  if (stance === "mixed") return "warn";
+  return "neutral";
+}
+
+function stanceLabel(stance: SentimentStance): string {
+  const labels: Record<SentimentStance, string> = {
+    bullish: "偏利好",
+    bearish: "偏利空",
+    mixed: "多空分歧",
+    neutral: "中性",
+    insufficient: "材料不足",
+  };
+  return labels[stance];
+}
+
+function toneLabel(tone: SentimentTone): string {
+  const labels: Record<SentimentTone, string> = {
+    bullish: "利好",
+    bearish: "利空",
+    neutral: "中性",
+  };
+  return labels[tone];
 }

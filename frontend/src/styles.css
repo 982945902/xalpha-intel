@@ -425,6 +425,133 @@ label {
   line-height: 1.5;
 }
 
+.sentiment-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #d9d2bd;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fffdf6;
+}
+
+.sentiment-head,
+.sentiment-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stance,
+.tone-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.stance-bullish,
+.tone-badge-bullish {
+  color: #126449;
+  background: #dff3eb;
+}
+
+.stance-bearish,
+.tone-badge-bearish {
+  color: #9a1d28;
+  background: #ffe1e4;
+}
+
+.stance-mixed {
+  color: #885600;
+  background: #fff0cf;
+}
+
+.stance-neutral,
+.stance-insufficient,
+.tone-badge-neutral {
+  color: #4f5560;
+  background: #e7eaee;
+}
+
+.sentiment-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sentiment-summary {
+  color: #39443e;
+  line-height: 1.55;
+}
+
+.keyword-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.keyword-row span {
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid #d8dfda;
+  border-radius: 999px;
+  color: #415048;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sentiment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.sentiment-item,
+.sentiment-empty {
+  border: 1px solid #e1ded0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.sentiment-item {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+}
+
+.sentiment-item a {
+  color: #173e67;
+  text-decoration: none;
+}
+
+.sentiment-item a:hover {
+  text-decoration: underline;
+}
+
+.sentiment-item small,
+.sentiment-item p,
+.sentiment-disclaimer {
+  color: #69736c;
+  line-height: 1.5;
+}
+
+.sentiment-item p,
+.sentiment-disclaimer {
+  font-size: 12px;
+}
+
+.sentiment-empty {
+  min-height: 80px;
+  display: grid;
+  place-items: center;
+  color: #69736c;
+}
+
 .table {
   overflow: hidden;
   border: 1px solid #d7dfd9;
@@ -543,7 +670,8 @@ label {
 
   .metric-grid,
   .detail-grid,
-  .leader-row {
+  .leader-row,
+  .sentiment-counts {
     grid-template-columns: 1fr;
   }
 

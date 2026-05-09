@@ -139,3 +139,81 @@ def test_group_ai_endpoint_returns_group_and_analysis(monkeypatch):
     body = response.json()
     assert body["group"]["member_count"] == 2
     assert body["analysis"]["headline"] == "规则分析"
+
+
+def test_fund_sentiment_endpoint_returns_summary_and_sentiment(monkeypatch):
+    from backend.app import main
+    from backend.app.services.sentiment import SentimentReport
+
+    monkeypatch.setattr(
+        main,
+        "get_fund_summary",
+        lambda code: _summary(code, "南方原油A", [1.0, 1.2]),
+    )
+    monkeypatch.setattr(
+        main,
+        "analyze_fund_sentiment",
+        lambda summary: SentimentReport(
+            subject_type="fund",
+            subject="501018 南方原油A",
+            stance="mixed",
+            score=0.0,
+            bullish_count=1,
+            bearish_count=1,
+            neutral_count=0,
+            keywords=["南方原油A", "原油"],
+            items=[],
+            summary="利好利空分歧。",
+            analysis_source="rules",
+            disclaimer="本分析仅用于研究和风险梳理，不构成投资建议。",
+        ),
+    )
+
+    response = TestClient(main.app).post("/api/sentiment/fund", json={"code": "501018"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"]["code"] == "501018"
+    assert body["sentiment"]["stance"] == "mixed"
+    assert body["sentiment"]["keywords"] == ["南方原油A", "原油"]
+
+
+def test_group_sentiment_endpoint_returns_group_and_sentiment(monkeypatch):
+    from backend.app import main
+    from backend.app.services.sentiment import SentimentReport
+
+    fixtures = {
+        "501018": _summary("501018", "南方原油A", [1.0, 1.3]),
+        "161129": _summary("161129", "原油LOF", [1.0, 0.9]),
+    }
+
+    monkeypatch.setattr(main, "get_fund_summary", lambda code: fixtures[code])
+    monkeypatch.setattr(main, "analyze_group", analyze_group)
+    monkeypatch.setattr(
+        main,
+        "analyze_group_sentiment",
+        lambda name, members: SentimentReport(
+            subject_type="group",
+            subject=name,
+            stance="bullish",
+            score=1.0,
+            bullish_count=1,
+            bearish_count=0,
+            neutral_count=0,
+            keywords=["原油"],
+            items=[],
+            summary="组合主题舆情偏正面。",
+            analysis_source="rules",
+            disclaimer="本分析仅用于研究和风险梳理，不构成投资建议。",
+        ),
+    )
+
+    response = TestClient(main.app).post(
+        "/api/sentiment/group",
+        json={"name": "oil group", "codes": ["501018", "161129"]},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["group"]["member_count"] == 2
+    assert body["sentiment"]["subject"] == "oil group"

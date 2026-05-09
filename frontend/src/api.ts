@@ -1,4 +1,12 @@
-import type { FundAIResponse, FundSearchResult, FundSummary, GroupAIResponse, GroupAnalysis } from "./types";
+import type {
+  FundAIResponse,
+  FundSearchResult,
+  FundSentimentResponse,
+  FundSummary,
+  GroupAIResponse,
+  GroupAnalysis,
+  GroupSentimentResponse,
+} from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8128";
 
@@ -24,6 +32,14 @@ export async function analyzeFundAI(code: string): Promise<FundAIResponse> {
 
 export async function analyzeGroupAI(name: string, codes: string[]): Promise<GroupAIResponse> {
   return postJson("/api/analyze/group", { name, codes });
+}
+
+export async function analyzeFundSentiment(code: string): Promise<FundSentimentResponse> {
+  return postJson("/api/sentiment/fund", { code });
+}
+
+export async function analyzeGroupSentiment(name: string, codes: string[]): Promise<GroupSentimentResponse> {
+  return postJson("/api/sentiment/group", { name, codes });
 }
 
 async function getJson<T>(path: string): Promise<T> {

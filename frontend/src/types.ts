@@ -48,6 +48,36 @@ export type AIAnalysis = {
   disclaimer: string;
 };
 
+export type SentimentTone = "bullish" | "bearish" | "neutral";
+
+export type SentimentStance = "bullish" | "bearish" | "mixed" | "neutral" | "insufficient";
+
+export type SentimentItem = {
+  title: string;
+  source: string;
+  published_at: string | null;
+  url: string | null;
+  tone: SentimentTone;
+  confidence: number;
+  reason: string;
+  matched_terms: string[];
+};
+
+export type SentimentReport = {
+  subject_type: "fund" | "group";
+  subject: string;
+  stance: SentimentStance;
+  score: number;
+  bullish_count: number;
+  bearish_count: number;
+  neutral_count: number;
+  keywords: string[];
+  items: SentimentItem[];
+  summary: string;
+  analysis_source: "codex" | "rules";
+  disclaimer: string;
+};
+
 export type FundAIResponse = {
   summary: FundSummary;
   analysis: AIAnalysis;
@@ -56,4 +86,14 @@ export type FundAIResponse = {
 export type GroupAIResponse = {
   group: GroupAnalysis;
   analysis: AIAnalysis;
+};
+
+export type FundSentimentResponse = {
+  summary: FundSummary;
+  sentiment: SentimentReport;
+};
+
+export type GroupSentimentResponse = {
+  group: GroupAnalysis;
+  sentiment: SentimentReport;
 };

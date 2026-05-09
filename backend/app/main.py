@@ -14,6 +14,7 @@ from backend.app.services.ai_analysis import (
 from backend.app.services.fund_data import get_fund_summary
 from backend.app.services.fund_search import search_funds
 from backend.app.services.group_analysis import analyze_group
+from backend.app.services.sentiment import analyze_fund_sentiment, analyze_group_sentiment
 
 
 app = FastAPI(title="xalpha-intel", version="0.1.0")
@@ -84,6 +85,25 @@ def analyze_group_with_ai(request: GroupAnalyzeRequest):
     return {
         "group": asdict(group),
         "analysis": asdict(analyze_group_result(group)),
+    }
+
+
+@app.post("/api/sentiment/fund")
+def fund_sentiment(request: FundAnalyzeRequest):
+    summary = _load_summary(request.code)
+    return {
+        "summary": asdict(summary),
+        "sentiment": asdict(analyze_fund_sentiment(summary)),
+    }
+
+
+@app.post("/api/sentiment/group")
+def group_sentiment(request: GroupAnalyzeRequest):
+    summaries = [_load_summary(code) for code in _unique_codes(request.codes)]
+    group = analyze_group(name=request.name, members=summaries)
+    return {
+        "group": asdict(group),
+        "sentiment": asdict(analyze_group_sentiment(request.name, summaries)),
     }
 
 
